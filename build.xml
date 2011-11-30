@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project basedir=".">
+    
+    <macrodef name="git">
+        <attribute name="command"/>
+        <attribute name="failonerror" default="true"/>
+        <attribute name="dir" default=""/>
+        <element name="args" optional="true"/>
+        <sequential>
+            <echo message="git @{command}"/>
+            <exec executable="git" dir="@{dir}">
+                <arg line="@{command}"/>
+                <args/>
+            </exec>
+        </sequential>
+    </macrodef>
+    
+    
+    <target name="git" depends="-new,-repo,-gh-pages"/>
+    
+    
+    <target name="-new" description="Make new repo">
+        <input message="Please enter repo name:" addproperty="repo"/>
+        <property name="repo.dir" value="../${repo}"/>
+        <property name="gh-pages.dir" value="../gh-pages/${repo}"/>
+    </target>
+    
+    
+    <target name="-repo" description="Make repo dir and init">
+        <echo>Make repo dir and init</echo>
+        
+        <!-- work with files -->
+        <mkdir dir="${repo.dir}"/>
+        <copy todir="${repo.dir}">
+            <fileset dir="_templates/master" includes="**"/>
+        </copy>
+        <replace dir="${repo.dir}" value="${repo}" token="@REPO@">
+            <include name="**"/>
+        </replace>
+        <rename src="${repo.dir}/src/repo.css" dest="${repo.dir}/src/${repo}.css"/>
+        <rename src="${repo.dir}/src/repo.js" dest="${repo.dir}/src/${repo}.js"/>
+        
+        <!-- work with git -->
+        <git command="init" dir="${repo.dir}">
+        </git>
+        <git command="add" dir="${repo.dir}">
+            <args><arg line="."/></args>
+        </git>
+        <git command="commit" dir="${repo.dir}">
+            <args><arg value="-am first commit"/></args>
+        </git>
+        <git command="remote" dir="${repo.dir}">
+            <args>
+                <arg value="add"/>
+                <arg value="origin"/>
+                <arg value="git@github.com:draeton/${repo}.git"/>
+            </args>
+        </git>
+        <git command="push" dir="${repo.dir}">
+            <args>
+                <arg value="origin"/>
+                <arg value="master"/>
+            </args>
+        </git>
+    </target>
+        
+    <target name="-gh-pages" description="Make gh-pages dir and init">        
+        <echo>Make gh-pages dir and init</echo>
+        
+        <!-- copy repo.dir to gh-pages -->
+        <copy todir="${gh-pages.dir}">
+            <fileset dir="${repo.dir}" includes="**"/>
+        </copy>
+        <copy todir="${gh-pages.dir}/.git">
+            <fileset dir="${repo.dir}/.git" includes="**"/>
+        </copy>
+        
+        <!-- setup gh-pages branch -->
+        <git command="symbolic-ref" dir="${gh-pages.dir}">
+            <args>
+                <arg value="HEAD"/>
+                <arg value="refs/heads/gh-pages"/>
+            </args>
+        </git>
+        <delete file="${gh-pages.dir}/.git/index"/>
+        <git command="clean" dir="${gh-pages.dir}">
+            <args>
+                <arg value="-fdx"/>
+            </args>
+        </git>
+        
+        <!-- work with files -->
+        <copy todir="${gh-pages.dir}">
+            <fileset dir="_templates/gh-pages" includes="**"/>
+        </copy>
+        <replace dir="${gh-pages.dir}" value="${repo}" token="@REPO@">
+            <include name="**"/>
+        </replace>
+        
+        <!-- work with git -->
+        <git command="add" dir="${gh-pages.dir}">
+            <args><arg line="."/></args>
+        </git>
+        <git command="commit" dir="${gh-pages.dir}">
+            <args><arg value="-am first gh-pages commit"/></args>
+        </git>
+        <git command="push" dir="${gh-pages.dir}">
+            <args>
+                <arg value="origin"/>
+                <arg value="gh-pages"/>
+            </args>
+        </git>
+    </target>
+    
+</project>
