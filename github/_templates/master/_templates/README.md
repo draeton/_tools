@@ -2,7 +2,7 @@
 
 [@REPO@](http://draeton.github.com/@REPO@/).
 The current version is `@VERSION@`. Documentation is available
-[here](http://draeton.github.com/@REPO@/docs/@REPO@.html).
+[here](http://draeton.github.com/@REPO@/@REPO@/docs/@REPO@.html).
 
 
 ## Implementation
@@ -11,9 +11,6 @@ The current version is `@VERSION@`. Documentation is available
 ## Dependencies
 
 jQuery 1.7+
-
-
-## To-do
 
 
 ## License

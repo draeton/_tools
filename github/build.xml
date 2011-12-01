@@ -21,8 +21,8 @@
     
     <target name="-new" description="Make new repo">
         <input message="Please enter repo name:" addproperty="repo"/>
-        <property name="repo.dir" value="../${repo}"/>
-        <property name="gh-pages.dir" value="../gh-pages/${repo}"/>
+        <property name="repo.dir" value="../../${repo}"/>
+        <property name="gh-pages.dir" value="../../gh-pages/${repo}"/>
     </target>
     
     
@@ -104,6 +104,22 @@
         <git command="commit" dir="${gh-pages.dir}">
             <args><arg value="-am first gh-pages commit"/></args>
         </git>
+        
+        <!-- copy master -->
+        <delete dir="${gh-pages.dir}/${repo}"/>
+        <copy todir="${gh-pages.dir}/${repo}">
+            <fileset dir="${repo.dir}" includes="**"/>
+        </copy>
+        
+        <!-- commit -->
+        <git command="add" dir="${gh-pages.dir}">
+            <args><arg line="."/></args>
+        </git>
+        <git command="commit" dir="${gh-pages.dir}">
+            <args><arg value="-am Copied files from master branch"/></args>
+        </git>
+        
+        <!-- push -->
         <git command="push" dir="${gh-pages.dir}">
             <args>
                 <arg value="origin"/>

@@ -3,7 +3,7 @@ layout: default
 title: @REPO@
 ---
 
-<link rel="stylesheet" href="css/@REPO@-@VERSION@-min.css">
+<link rel="stylesheet" href="http://draeton.github.com/@REPO@/@REPO@/build/css/@REPO@-@VERSION@-min.css">
 
 <section id="main" role="main">
 
@@ -14,7 +14,7 @@ title: @REPO@
 
 ## Implementation
 
-Documentation is available [here.](docs/@REPO@.html)
+Documentation is available [here.](http://draeton.github.com/@REPO@/@REPO@/docs/@REPO@.html)
     
 
 ## Dependencies
@@ -34,7 +34,7 @@ Matthew Cobbs (matthew.cobbs@gmail.com)
 
 ## Download
 
-The latest release, **@VERSION@, is [available here](dist/@REPO@-@VERSION@.zip).**
+The latest release, **@VERSION@ is [available here](http://draeton.github.com/@REPO@/@REPO@/dist/@REPO@-@VERSION@.zip).**
 
 You can download this project in either [zip](https://github.com/draeton/@REPO@/zipball/master) 
 or [tar](https://github.com/draeton/@REPO@/tarball/master) formats.
@@ -45,7 +45,7 @@ You can also clone the project with [Git](http://git-scm.com) by running:
 
 </section>
 
-<script src="js/@REPO@-@VERSION@-min.js"></script>
+<script src="(http://draeton.github.com/@REPO@/@REPO@/build/js/@REPO@-@VERSION@-min.js"></script>
 <script>
 $(document).ready(function () {
 });
