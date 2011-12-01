@@ -163,10 +163,10 @@
         <mkdir dir="${gh-pages.dir}/css"/>
         <mkdir dir="${gh-pages.dir}/js"/>        
         <copy todir="${gh-pages.dir}/css">
-            <fileset dir="${build.dir}/css" includes="*.css"/>
+            <fileset dir="${build.dir}/css" includes="*.*"/>
         </copy>
         <copy todir="${gh-pages.dir}/js">
-            <fileset dir="${build.dir}/js" includes="*.js"/>
+            <fileset dir="${build.dir}/js" includes="*.*"/>
         </copy>
         
         <echo>delete docs, and copy new docs</echo>
@@ -195,7 +195,7 @@
     </target>
 
     
-    <target name="-increment" depends="-load.properties" description="Increment build number">
+    <target name="increment" depends="-load.properties" description="Increment build number">
         <echo>Increment build number</echo>
         
         <propertyfile file="build.properties">
