@@ -16,7 +16,9 @@
     </macrodef>
     
     
-    <target name="git" depends="-new,-repo,-gh-pages"/>
+    <target name="newrepo" depends="-new,-repo,-gh-pages"/>
+    <target name="justrepo" depends="-new,-repo"/>
+    <target name="newpages" depends="-new,-gh-pages"/>
     
     
     <target name="-new" description="Make new repo">
@@ -25,8 +27,17 @@
         <property name="gh-pages.dir" value="../../gh-pages/${repo}"/>
     </target>
     
+
+    <target name="-repo.dir.check" description="Checking for repo dir">
+        <echo>Checking for repo dir</echo>
+        <condition property="repo.dir.exists">
+            <available file="${repo.dir}" type="dir"/>
+        </condition>
+    </target>
     
-    <target name="-repo" description="Make repo dir and init">
+    
+    <target name="-repo" depends="-repo.dir.check" 
+        unless="repo.dir.exists" description="Make repo dir and init">
         <echo>Make repo dir and init</echo>
         
         <!-- work with files -->
@@ -63,8 +74,18 @@
             </args>
         </git>
     </target>
+    
+
+    <target name="-gh-pages.dir.check" description="Checking for gh-pages dir">
+        <echo>Checking for gh-pages dir</echo>
+        <condition property="gh-pages.dir.exists">
+            <available file="${gh-pages.dir}" type="dir"/>
+        </condition>
+    </target>
+    
         
-    <target name="-gh-pages" description="Make gh-pages dir and init">        
+    <target name="-gh-pages" depends="-repo.dir.check,-gh-pages.dir.check" 
+        if="repo.dir.exists" unless="gh-pages.dir.exists" description="Make gh-pages dir and init">        
         <echo>Make gh-pages dir and init</echo>
         
         <!-- copy repo.dir to gh-pages -->
