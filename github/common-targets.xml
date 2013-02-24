@@ -8,12 +8,16 @@
     <property name="dist.dir" value="${basedir}/dist"/>
     <property name="docs.dir" value="${basedir}/docs"/>
     <property name="templates.dir" value="${basedir}/_templates"/>
+    <property name="tests.dir" value="${basedir}/tests"/>
 
-    <property name="jshint.jar" value="${apps.home}/ant-jshint/ant-jshint-0.3.4.jar"/>
-    <property name="jshint-deps.jar" value="${apps.home}/ant-jshint/ant-jshint-0.3.4-deps.jar"/>
+    <property name="jshint.jar" value="${apps.home}/ant-jshint/ant-jshint-0.3.4-deps.jar"/>
+    <property name="jstest.jar" value="${apps.home}/ant-jstestrunner/ant-jstestrunner-0.1-deps.jar"/>
     <property name="docco.bat" value="${apps.home}/nodejs/docco.bat"/>
     <property name="yui-compressor.jar" value="${apps.home}/yuicompressor-2.4.7/build/yuicompressor-2.4.7.jar"/>
     <property name="yui-compressor-ant-task.jar" value="${apps.home}/yui-compressor-ant-task-0.5/bin/yui-compressor-ant-task-0.5.jar"/>
+    <property name="phantomjs.win.exe" value="${apps.home}/phantom/win/phantomjs.exe"/>
+    <property name="phantomjs.mac.exe" value="${apps.home}/phantom/mac/phantomjs.exe"/>
+    <property name="phantomjs.linux.exe" value="${apps.home}/phantom/linux/phantomjs.exe"/>
 
 
     <macrodef name="git">
@@ -54,7 +58,7 @@
     <target name="jshint" description="JSHint validation">
         <echo>JSHint validation</echo>
 
-        <taskdef name="jshint" classname="com.philmander.jshint.JsHintAntTask" classpath="${jshint-deps.jar}" />
+        <taskdef name="jshint" classname="com.philmander.jshint.JsHintAntTask" classpath="${jshint.jar}" />
 
         <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties">
             <include name="**/*.js"/>
@@ -62,7 +66,21 @@
             <report type="plain" destFile="${basedir}/jshint.out" />
         </jshint>
 
-	    <echo>Finished linting</echo>
+        <echo>Finished linting</echo>
+    </target>
+
+
+    <target name="jstest" description="Run JS unit tests">
+        <echo>Run JS unit tests</echo>
+
+        <taskdef name="jstest" classname="com.philmander.jstest.ant.JsTestRunnerTask" classpath="${jstest.jar}" />
+
+        <jstest dir="${tests.dir}" phantomWin="${phantomjs.win.exe}" phantomMac="${phantomjs.mac.exe}" phantomLinux="${phantomjs.linux.exe}">
+            <include name="**/*.html"/>
+            <report type="plain" destFile="${basedir}/jstest.out" />
+        </jstest>
+
+        <echo>Finished unit tests</echo>
     </target>
 
 
@@ -82,6 +100,7 @@
         <exec executable="${docco.bat}">
             <arg line="${docco.args}"/>
         </exec>
+
         <!-- clean up after docco -->
         <delete dir="-p"/>
     </target>
