@@ -58,7 +58,7 @@
 
         <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties">
             <include name="**/*.js"/>
-            <exclude name="lib"/>
+            <exclude name="lib/**/*.js"/>
             <report type="plain" destFile="${basedir}/jshint.out" />
         </jshint>
 
