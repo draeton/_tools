@@ -9,7 +9,8 @@
     <property name="docs.dir" value="${basedir}/docs"/>
     <property name="templates.dir" value="${basedir}/_templates"/>
 
-    <property name="jslint4java.jar" value="${apps.home}/jslint4java/jslint4java-2.0.1.jar"/>
+    <property name="jshint.jar" value="${apps.home}/ant-jshint/ant-jshint-0.3.4.jar"/>
+    <property name="jshint-deps.jar" value="${apps.home}/ant-jshint/ant-jshint-0.3.4-deps.jar"/>
     <property name="docco.bat" value="${apps.home}/nodejs/docco.bat"/>
     <property name="yui-compressor.jar" value="${apps.home}/yuicompressor-2.4.7/build/yuicompressor-2.4.7.jar"/>
     <property name="yui-compressor-ant-task.jar" value="${apps.home}/yui-compressor-ant-task-0.5/bin/yui-compressor-ant-task-0.5.jar"/>
@@ -30,14 +31,12 @@
     </macrodef>
 
 
-    <target name="-load.properties" description="Set properties for this build">
-        <echo>Set properties for this build</echo>
+    <target name="-load.properties" description="Load properties for this build">
+        <echo>Load properties for this build</echo>
 
         <property file="build.properties"/>
         <property name="gh-pages.dir" value="../gh-pages/${repo}"/>
         <property name="version" value="${build.major}.${build.minor}.${build.number}"/>
-
-        <input message="Please enter a commit message:" addproperty="commit.message"/>
     </target>
 
 
@@ -52,20 +51,17 @@
     </target>
 
 
-    <!-- skipping for now... I need jshint4java!!! -->
-    <target name="jslint" depends="-load.properties" description="JSHint check">
-        <echo>JSLint check</echo>
+    <target name="jshint" description="JSHint validation">
+        <echo>JSHint validation</echo>
 
-        <taskdef name="jslint" classname="com.googlecode.jslint4java.ant.JSLintTask" classpath="${jslint4java.jar}" />
+        <taskdef name="jshint" classname="com.philmander.jshint.JsHintAntTask" classpath="${jshint-deps.jar}" />
 
-        <jslint options="undef,white">
-            <formatter type="plain" />
-            <formatter type="plain" destfile="${build.dir}/jslint.out" />
-            <fileset dir="${src.dir}">
-                <include name="*.js"/>
-                <exclude name="lib"/>
-            </fileset>
-        </jslint>
+        <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties">
+            <include name="**/*.js"/>
+            <exclude name="lib"/>
+            <report type="plain" destFile="${basedir}/jshint.out" />
+        </jshint>
+
 	    <echo>Finished linting</echo>
     </target>
 
@@ -124,8 +120,6 @@
     <target name="-src-lib-exists" depends="-init" description="Check if src/lib exists">
         <echo>Check if src/lib exists</echo>
 
-        <!-- condition property="src.lib.exists">
-        </condition -->
         <available file="${src.dir}/lib" type="dir" property="src.lib.exists" />
     </target>
 
@@ -146,7 +140,14 @@
     </target>
 
 
-    <target name="-commit" depends="-init" description="Commit new build to master git repo">
+    <target name="-commit.message" description="Set commit message">
+        <echo>Set commit message</echo>
+
+        <input message="Please enter a commit message:" addproperty="commit.message"/>
+    </target>
+
+
+    <target name="-commit" depends="-commit.message" description="Commit new build to master git repo">
         <echo>Commit new build to master git repo</echo>
 
         <git command="add">
@@ -164,7 +165,7 @@
     </target>
 
 
-    <target name="increment" description="Increment build number">
+    <target name="-increment" description="Increment build number">
         <echo>Increment build number</echo>
 
         <propertyfile file="build.properties">
