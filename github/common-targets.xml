@@ -9,6 +9,7 @@
     <property name="docs.dir" value="${basedir}/docs"/>
     <property name="templates.dir" value="${basedir}/_templates"/>
     <property name="tests.dir" value="${basedir}/tests"/>
+    <property name="out.dir" value="${basedir}/out"/>
 
     <property name="jshint.jar" value="${apps.home}/ant-jshint/ant-jshint-0.3.4-deps.jar"/>
     <property name="jstest.jar" value="${apps.home}/ant-jstestrunner/ant-jstestrunner-0.1-deps.jar"/>
@@ -49,11 +50,13 @@
 
         <delete dir="${build.dir}"/>
         <delete dir="${docs.dir}"/>
+        <delete dir="${out.dir}"/>
 
         <mkdir dir="${build.dir}"/>
         <mkdir dir="${docs.dir}"/>
+        <mkdir dir="${out.dir}"/>
 
-        <copy file="../_tools/github/img/passing.png" tofile="${basedir}/status.png" overwrite="true"/>
+        <copy file="../_tools/github/img/passing.png" tofile="${out.dir}/status.png" overwrite="true"/>
     </target>
 
 
@@ -65,12 +68,12 @@
         <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties" fail="false">
             <include name="**/*.js"/>
             <exclude name="lib/**/*.js"/>
-            <report type="plain" destFile="${basedir}/jshint.out" />
+            <report type="plain" destFile="${out.dir}/jshint.out" />
         </jshint>
 
         <condition property="jshint.fail">
             <resourcecount when="greater" count="0">
-                <fileset file="${basedir}/jshint.out">
+                <fileset file="${out.dir}/jshint.out">
                     <contains text="errors" casesensitive="yes"/>
                 </fileset>
             </resourcecount>
@@ -87,12 +90,12 @@
 
         <jstest dir="${tests.dir}" phantomWin="${phantomjs.win.exe}" phantomMac="${phantomjs.mac.exe}" phantomLinux="${phantomjs.linux.exe}" fail="false">
             <include name="**/*.html"/>
-            <report type="plain" destFile="${basedir}/jstest.out" />
+            <report type="plain" destFile="${out.dir}/jstest.out" />
         </jstest>
 
         <condition property="jstest.fail">
             <resourcecount when="greater" count="0">
-                <fileset file="${basedir}/jstest.out">
+                <fileset file="${out.dir}/jstest.out">
                     <contains text="JS tests failed" casesensitive="yes"/>
                 </fileset>
             </resourcecount>
@@ -103,12 +106,12 @@
 
 
     <target name="-check-jshint" description="Runs if jshint fails" depends="jshint" if="jshint.fail">
-        <copy file="../_tools/github/img/failing.png" tofile="${basedir}/status.png" overwrite="true"/>
+        <copy file="../_tools/github/img/failing.png" tofile="${out.dir}/status.png" overwrite="true"/>
     </target>
 
 
     <target name="-check-jstest" description="Runs if jstest fails" depends="jstest" if="jstest.fail">
-        <copy file="../_tools/github/img/failing.png" tofile="${basedir}/status.png" overwrite="true"/>
+        <copy file="../_tools/github/img/failing.png" tofile="${out.dir}/status.png" overwrite="true"/>
     </target>
 
 
