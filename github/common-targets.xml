@@ -52,6 +52,8 @@
 
         <mkdir dir="${build.dir}"/>
         <mkdir dir="${docs.dir}"/>
+
+        <copy file="../_tools/github/img/passing.png" tofile="${basedir}/status.png" overwrite="true"/>
     </target>
 
 
@@ -60,11 +62,19 @@
 
         <taskdef name="jshint" classname="com.philmander.jshint.JsHintAntTask" classpath="${jshint.jar}" />
 
-        <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties">
+        <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties" fail="false">
             <include name="**/*.js"/>
             <exclude name="lib/**/*.js"/>
             <report type="plain" destFile="${basedir}/jshint.out" />
         </jshint>
+
+        <condition property="jshint.fail">
+            <resourcecount when="greater" count="0">
+                <fileset file="${basedir}/jshint.out">
+                    <contains text="errors" casesensitive="yes"/>
+                </fileset>
+            </resourcecount>
+        </condition>
 
         <echo>Finished linting</echo>
     </target>
@@ -75,13 +85,34 @@
 
         <taskdef name="jstest" classname="com.philmander.jstest.ant.JsTestRunnerTask" classpath="${jstest.jar}" />
 
-        <jstest dir="${tests.dir}" phantomWin="${phantomjs.win.exe}" phantomMac="${phantomjs.mac.exe}" phantomLinux="${phantomjs.linux.exe}">
+        <jstest dir="${tests.dir}" phantomWin="${phantomjs.win.exe}" phantomMac="${phantomjs.mac.exe}" phantomLinux="${phantomjs.linux.exe}" fail="false">
             <include name="**/*.html"/>
             <report type="plain" destFile="${basedir}/jstest.out" />
         </jstest>
 
+        <condition property="jstest.fail">
+            <resourcecount when="greater" count="0">
+                <fileset file="${basedir}/jstest.out">
+                    <contains text="JS tests failed" casesensitive="yes"/>
+                </fileset>
+            </resourcecount>
+        </condition>
+
         <echo>Finished unit tests</echo>
     </target>
+
+
+    <target name="-check-jshint" description="Runs if jshint fails" depends="jshint" if="jshint.fail">
+        <copy file="../_tools/github/img/failing.png" tofile="${basedir}/status.png" overwrite="true"/>
+    </target>
+
+
+    <target name="-check-jstest" description="Runs if jstest fails" depends="jstest" if="jstest.fail">
+        <copy file="../_tools/github/img/failing.png" tofile="${basedir}/status.png" overwrite="true"/>
+    </target>
+
+
+    <target name="-check-status" description="Check lint and unit test status" depends="-check-jshint,-check-jstest"/>
 
 
     <target name="-readme" depends="-load.properties" description="Updating version number in README">
