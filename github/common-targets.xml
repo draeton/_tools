@@ -1,25 +1,231 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project>
 
-    <property name="apps.home" value="${env.APPS_HOME}"/>
 
-    <property name="src.dir" value="${basedir}/src"/>
-    <property name="build.dir" value="${basedir}/build"/>
-    <property name="dist.dir" value="${basedir}/dist"/>
-    <property name="docs.dir" value="${basedir}/docs"/>
-    <property name="templates.dir" value="${basedir}/_templates"/>
-    <property name="tests.dir" value="${basedir}/tests"/>
-    <property name="out.dir" value="${basedir}/out"/>
+    <target name="-clean">
+        <echo>Make project directory structure</echo>
 
-    <property name="jshint.jar" value="${apps.home}/ant-jshint/ant-jshint-0.3.4-deps.jar"/>
-    <property name="jstest.jar" value="${apps.home}/ant-jstestrunner/ant-jstestrunner-0.1-deps.jar"/>
-    <property name="docco.bat" value="${apps.home}/nodejs/docco.bat"/>
-    <property name="yui-compressor.jar" value="${apps.home}/yuicompressor-2.4.7/build/yuicompressor-2.4.7.jar"/>
-    <property name="yui-compressor-ant-task.jar" value="${apps.home}/yui-compressor-ant-task-0.5/bin/yui-compressor-ant-task-0.5.jar"/>
-    <property name="phantomjs.win.exe" value="${apps.home}/phantom/win/phantomjs.exe"/>
-    <property name="phantomjs.mac.exe" value="${apps.home}/phantom/mac/phantomjs.exe"/>
-    <property name="phantomjs.linux.exe" value="${apps.home}/phantom/linux/phantomjs.exe"/>
+        <delete dir="${amd.dir}"/>
+        <delete dir="${build.dir}"/>
+        <delete dir="${docs.dir}"/>
+        <delete dir="${out.dir}"/>
 
+        <mkdir dir="${amd.dir}"/>
+        <mkdir dir="${build.dir}"/>
+        <mkdir dir="${docs.dir}"/>
+        <mkdir dir="${out.dir}"/>
+    </target>
+
+
+    <!--
+
+        VALIDATION
+
+    -->
+
+    <target name="jshint">
+        <echo>Linting</echo>
+
+        <taskdef name="jshint" classname="com.philmander.jshint.JsHintAntTask" classpath="${jshint.jar}" />
+
+        <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties" fail="false">
+            <include name="**/*.js"/>
+            <exclude name="lib/**/*.js"/>
+            <exclude name="js/app.build.js"/>
+            <exclude name="js/require.js"/>
+            <exclude name="js/text.js"/>
+            <report type="plain" destFile="${out.dir}/jshint.out" />
+        </jshint>
+
+        <condition property="jshint.fail">
+            <resourcecount when="greater" count="0">
+                <fileset file="${out.dir}/jshint.out">
+                    <contains text="errors" casesensitive="yes"/>
+                </fileset>
+            </resourcecount>
+        </condition>
+    </target>
+
+
+    <target name="jstest">
+        <echo>Unit tests</echo>
+
+        <taskdef name="jstest" classname="com.philmander.jstest.ant.JsTestRunnerTask" classpath="${jstest.jar}" />
+
+        <jstest dir="${tests.dir}" phantomWin="${phantomjs.win.exe}" phantomMac="${phantomjs.mac.exe}" phantomLinux="${phantomjs.linux.exe}" fail="false">
+            <include name="**/*.html"/>
+            <report type="plain" destFile="${out.dir}/jstest.out" />
+        </jstest>
+
+        <condition property="jstest.fail">
+            <resourcecount when="greater" count="0">
+                <fileset file="${out.dir}/jstest.out">
+                    <contains text="JS tests failed" casesensitive="yes"/>
+                </fileset>
+            </resourcecount>
+        </condition>
+    </target>
+
+
+    <target name="-check-start">
+        <echo>Reset project status</echo>
+        <copy file="${passing.png}" tofile="${out.dir}/status.png" overwrite="true"/>
+    </target>
+
+
+    <target name="-check-jshint" depends="jshint" if="jshint.fail">
+        <echo>Runs if jshint fails</echo>
+        <copy file="${failing.png}" tofile="${out.dir}/status.png" overwrite="true"/>
+    </target>
+
+
+    <target name="-check-jstest" depends="jstest" if="jstest.fail">
+        <echo>Runs if jstest fails</echo>
+        <copy file="${failing.png}" tofile="${out.dir}/status.png" overwrite="true"/>
+    </target>
+
+
+    <target name="validate" depends="-check-start,-check-jshint,-check-jstest">
+        <echo>Check lint and unit test status</echo>
+    </target>
+
+
+    <!--
+
+        DOCUMENTATION
+
+    -->
+
+    <target name="-increment">
+        <echo>Increment build number</echo>
+
+        <propertyfile file="build.properties">
+            <entry key="build.number" type="int" operation="+" default="0"/>
+        </propertyfile>
+    </target>
+
+
+    <target name="-readme">
+        <echo>Updating version number in README.md</echo>
+
+        <delete file="README.md"/>
+        <copy file="${templates.dir}/README.md" tofile="README.md"/>
+        <replace file="README.md" token="@VERSION@" value="${version}"/>
+    </target>
+
+
+    <target name="docco" depends="-init,-clean">
+        <echo>Create docs using Docco</echo>
+
+        <fileset id="docs.js" dir="${src.dir}/js">
+            <include name="**/*.js"/>
+            <exclude name="require.js"/>
+            <exclude name="text.js"/>
+        </fileset>
+
+        <pathconvert pathsep=" " property="docco.args" refid="docs.js"/>
+        <exec executable="${docco.bat}">
+            <arg line="${docco.args}"/>
+        </exec>
+
+        <!-- clean up after docco -->
+        <delete dir="-p"/>
+    </target>
+
+
+    <!--
+
+        OPTIMIZATION
+
+    -->
+
+    <target name="require" depends="-clean">
+        <echo>Optimize scripts with r.js and closure compiler</echo>
+
+        <java classname="org.mozilla.javascript.tools.shell.Main" failonerror="true">
+            <classpath>
+                <pathelement location="${rhino.jar}" />
+                <pathelement location="${closure.jar}" />
+            </classpath>
+            <arg value="${r.js}" />
+            <arg value="-o" />
+            <arg value="./app.build.js" />
+        </java>
+    </target>
+
+
+    <target name="-concat" depends="require">
+        <echo>Concatenation of JS and CSS</echo>
+
+        <concat destfile="${build.dir}/js/${repo}-${version}.js" force="no">
+            <filelist dir="${amd.dir}/js">
+                <file name="require.js"/>
+                <file name="${repo}.js"/>
+            </filelist>
+        </concat>
+
+        <concat destfile="${build.dir}/css/${repo}-${version}.css" force="no">
+            <filelist dir="${amd.dir}/css">
+                <file name="${repo}.css"/>
+            </filelist>
+        </concat>
+    </target>
+
+
+    <target name="-minify" depends="-concat">
+        <echo>Invoke YUI compressor</echo>
+
+        <path id="task.classpath">
+            <pathelement location="${yui-compressor.jar}"/>
+            <pathelement location="${yui-compressor-ant-task.jar}"/>
+        </path>
+
+        <taskdef name="yui-compressor" classname="net.noha.tools.ant.yuicompressor.tasks.YuiCompressorTask">
+            <classpath refid="task.classpath"/>
+        </taskdef>
+
+        <yui-compressor warn="false" charset="UTF-8" fromdir="${build.dir}" todir="${build.dir}">
+           <include name="js/${repo}-${version}.js" />
+           <include name="css/${repo}-${version}.css" />
+        </yui-compressor>
+    </target>
+
+
+    <!--
+
+        DISTRIBUTION
+
+    -->
+
+    <target name="-src-lib-exists">
+        <echo>Check if src/lib exists</echo>
+
+        <available file="${src.dir}/lib" type="dir" property="src.lib.exists" />
+    </target>
+
+
+    <target name="-copy-depends" depends="-clean,-src-lib-exists">
+        <echo>Copy dependencies</echo>
+
+        <copy todir="${build.dir}/js">
+            <fileset dir="${src.dir}/lib"/>
+        </copy>
+    </target>
+
+
+    <target name="-zip">
+        <echo>Create a zip file for distribution</echo>
+
+        <property name="dist.zip" value="${dist.dir}/${repo}-${version}.zip"/>
+        <zip destfile="${dist.zip}" basedir="${build.dir}"/>
+    </target>
+
+
+    <!--
+
+        GIT
+
+    -->
 
     <macrodef name="git">
         <attribute name="command"/>
@@ -36,179 +242,24 @@
     </macrodef>
 
 
-    <target name="-load.properties" description="Load properties for this build">
-        <echo>Load properties for this build</echo>
-
-        <property file="build.properties"/>
-        <property name="gh-pages.dir" value="../gh-pages/${repo}"/>
-        <property name="version" value="${build.major}.${build.minor}.${build.number}"/>
-    </target>
-
-
-    <target name="-clean" depends="-load.properties" description="Make project directory structure">
-        <echo>Make project directory structure</echo>
-
-        <delete dir="${build.dir}"/>
-        <delete dir="${docs.dir}"/>
-        <delete dir="${out.dir}"/>
-
-        <mkdir dir="${build.dir}"/>
-        <mkdir dir="${docs.dir}"/>
-        <mkdir dir="${out.dir}"/>
-
-        <copy file="../_tools/github/img/passing.png" tofile="${out.dir}/status.png" overwrite="true"/>
-    </target>
-
-
-    <target name="jshint" description="JSHint validation">
-        <echo>JSHint validation</echo>
-
-        <taskdef name="jshint" classname="com.philmander.jshint.JsHintAntTask" classpath="${jshint.jar}" />
-
-        <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties" fail="false">
-            <include name="**/*.js"/>
-            <exclude name="lib/**/*.js"/>
-            <report type="plain" destFile="${out.dir}/jshint.out" />
-        </jshint>
-
-        <condition property="jshint.fail">
-            <resourcecount when="greater" count="0">
-                <fileset file="${out.dir}/jshint.out">
-                    <contains text="errors" casesensitive="yes"/>
-                </fileset>
-            </resourcecount>
-        </condition>
-
-        <echo>Finished linting</echo>
-    </target>
-
-
-    <target name="jstest" description="Run JS unit tests">
-        <echo>Run JS unit tests</echo>
-
-        <taskdef name="jstest" classname="com.philmander.jstest.ant.JsTestRunnerTask" classpath="${jstest.jar}" />
-
-        <jstest dir="${tests.dir}" phantomWin="${phantomjs.win.exe}" phantomMac="${phantomjs.mac.exe}" phantomLinux="${phantomjs.linux.exe}" fail="false">
-            <include name="**/*.html"/>
-            <report type="plain" destFile="${out.dir}/jstest.out" />
-        </jstest>
-
-        <condition property="jstest.fail">
-            <resourcecount when="greater" count="0">
-                <fileset file="${out.dir}/jstest.out">
-                    <contains text="JS tests failed" casesensitive="yes"/>
-                </fileset>
-            </resourcecount>
-        </condition>
-
-        <echo>Finished unit tests</echo>
-    </target>
-
-
-    <target name="-check-jshint" description="Runs if jshint fails" depends="jshint" if="jshint.fail">
-        <copy file="../_tools/github/img/failing.png" tofile="${out.dir}/status.png" overwrite="true"/>
-    </target>
-
-
-    <target name="-check-jstest" description="Runs if jstest fails" depends="jstest" if="jstest.fail">
-        <copy file="../_tools/github/img/failing.png" tofile="${out.dir}/status.png" overwrite="true"/>
-    </target>
-
-
-    <target name="-check-status" description="Check lint and unit test status" depends="-check-jshint,-check-jstest"/>
-
-
-    <target name="-readme" depends="-load.properties" description="Updating version number in README">
-        <echo>Updating version number in README.md</echo>
-
-        <delete file="README.md"/>
-        <copy file="${templates.dir}/README.md" tofile="README.md"/>
-        <replace file="README.md" token="@VERSION@" value="${version}"/>
-    </target>
-
-
-    <target name="-docco" depends="-init" description="Create docs using Docco">
-        <echo>Create docs using Docco</echo>
-
-        <pathconvert pathsep=" " property="docco.args" refid="src.js"/>
-        <exec executable="${docco.bat}">
-            <arg line="${docco.args}"/>
-        </exec>
-
-        <!-- clean up after docco -->
-        <delete dir="-p"/>
-    </target>
-
-
-    <target name="-concat" depends="-init" description="Concatenation of JS and CSS">
-        <echo>Concatenation of JS and CSS</echo>
-
-        <concat destfile="${build.dir}/js/${repo}-${version}.js" force="no">
-            <filelist refid="src.js"/>
-        </concat>
-        <concat destfile="${build.dir}/css/${repo}-${version}.css" force="no">
-            <filelist refid="src.css"/>
-        </concat>
-    </target>
-
-
-    <target name="-minify" depends="-concat" description="Invoke YUI compressor">
-        <echo>Invoke YUI compressor</echo>
-
-        <path id="task.classpath">
-            <pathelement location="${yui-compressor.jar}"/>
-            <pathelement location="${yui-compressor-ant-task.jar}"/>
-        </path>
-        <taskdef name="yui-compressor" classname="net.noha.tools.ant.yuicompressor.tasks.YuiCompressorTask">
-            <classpath refid="task.classpath"/>
-        </taskdef>
-
-        <yui-compressor warn="false" charset="UTF-8" fromdir="${build.dir}" todir="${build.dir}">
-           <include name="js/${repo}-${version}.js" />
-           <include name="css/${repo}-${version}.css" />
-        </yui-compressor>
-    </target>
-
-
-    <target name="-src-lib-exists" depends="-init" description="Check if src/lib exists">
-        <echo>Check if src/lib exists</echo>
-
-        <available file="${src.dir}/lib" type="dir" property="src.lib.exists" />
-    </target>
-
-
-    <target name="-copy-depends" depends="-init,-src-lib-exists" description="Copy dependencies" if="src.lib.exists">
-        <echo>Copy dependencies</echo>
-
-        <copy todir="${build.dir}/js">
-            <fileset dir="${src.dir}/lib"/>
-        </copy>
-    </target>
-
-
-    <target name="-zip" depends="-init" description="Create a zip file for distribution">
-        <echo message="Create a zip file for distribution" />
-
-        <zip destfile="${dist.dir}/${repo}-${version}.zip" basedir="${build.dir}" />
-    </target>
-
-
-    <target name="-commit.message" description="Set commit message">
+    <target name="-commit-message">
         <echo>Set commit message</echo>
 
         <input message="Please enter a commit message:" addproperty="commit.message"/>
     </target>
 
 
-    <target name="-commit" depends="-commit.message" description="Commit new build to master git repo">
+    <target name="commit" depends="-commit-message">
         <echo>Commit new build to master git repo</echo>
 
         <git command="add">
             <args><arg line="."/></args>
         </git>
+
         <git command="commit">
             <args><arg value="-am Build ${version} - ${commit.message}"/></args>
         </git>
+
         <git command="push">
             <args>
                 <arg value="origin"/>
@@ -218,16 +269,13 @@
     </target>
 
 
-    <target name="-increment" description="Increment build number">
-        <echo>Increment build number</echo>
+    <!--
 
-        <propertyfile file="build.properties">
-            <entry key="build.number" type="int" operation="+" default="0"/>
-        </propertyfile>
-    </target>
+        GITHUB PAGES
 
+    -->
 
-    <target name="-gh-pages-update" depends="-load.properties" description="Make new changes to gh-pages">
+    <target name="-gh-pages-update">
         <echo>Make new changes to gh-pages</echo>
 
         <echo>copy new index.md to gh-pages and update version number</echo>
@@ -237,13 +285,23 @@
     </target>
 
 
-    <target name="-gh-pages-commit" depends="-load.properties" description="Update gh-pages repo master copy to latest version">
+    <target name="-gh-pages-commit">
         <echo>Update gh-pages repo master copy to latest version</echo>
 
         <!-- copy master -->
-        <delete dir="${gh-pages.dir}/${repo}"/>
-        <copy todir="${gh-pages.dir}/${repo}">
-            <fileset dir="${basedir}" includes="**"/>
+        <delete dir="${gh-pages.dir}/repo"/>
+
+        <copy todir="${gh-pages.dir}/repo/build">
+            <fileset dir="${build.dir}"/>
+        </copy>
+        <copy todir="${gh-pages.dir}/repo/dist">
+            <fileset dir="${dist.dir}"/>
+        </copy>
+        <copy todir="${gh-pages.dir}/repo/docs">
+            <fileset dir="${docs.dir}"/>
+        </copy>
+        <copy todir="${gh-pages.dir}/repo/tests">
+            <fileset dir="${tests.dir}"/>
         </copy>
 
         <!-- commit -->
