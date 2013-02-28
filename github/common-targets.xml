@@ -28,19 +28,17 @@
 
         <taskdef name="jshint" classname="com.philmander.jshint.JsHintAntTask" classpath="${jshint.jar}" />
 
-        <jshint dir="${src.dir}" optionsFile="${basedir}/jshint.properties" fail="false">
+        <jshint dir="${src.dir}" optionsFile="./jshint.properties" fail="false">
             <include name="**/*.js"/>
-            <exclude name="lib/**/*.js"/>
-            <exclude name="js/app.build.js"/>
-            <exclude name="js/require.js"/>
             <exclude name="js/text.js"/>
+            <exclude name="require.js"/>
             <report type="plain" destFile="${out.dir}/jshint.out" />
         </jshint>
 
         <condition property="jshint.fail">
             <resourcecount when="greater" count="0">
                 <fileset file="${out.dir}/jshint.out">
-                    <contains text="errors" casesensitive="yes"/>
+                    <contains text="JSHint validation failed" casesensitive="yes"/>
                 </fileset>
             </resourcecount>
         </condition>
@@ -96,14 +94,6 @@
 
     -->
 
-    <target name="-increment">
-        <echo>Increment build number</echo>
-
-        <propertyfile file="build.properties">
-            <entry key="build.number" type="int" operation="+" default="0"/>
-        </propertyfile>
-    </target>
-
 
     <target name="-readme">
         <echo>Updating version number in README.md</echo>
@@ -119,7 +109,6 @@
 
         <fileset id="docs.js" dir="${src.dir}/js">
             <include name="**/*.js"/>
-            <exclude name="require.js"/>
             <exclude name="text.js"/>
         </fileset>
 
@@ -130,6 +119,18 @@
 
         <!-- clean up after docco -->
         <delete dir="-p"/>
+    </target>
+
+
+    <target name="docker" depends="-init,-clean">
+        <echo>Create docs using Docker</echo>
+
+        <exec executable="${docker.bat}">
+            <arg line="-i ${src.dir}/js"/>
+            <arg line="-o ${docs.dir}"/>
+            <arg line="--exclude text.js"/>
+            <arg line="--extras fileSearch"/>
+        </exec>
     </target>
 
 
@@ -157,14 +158,14 @@
     <target name="-concat" depends="require">
         <echo>Concatenation of JS and CSS</echo>
 
-        <concat destfile="${build.dir}/js/${repo}-${version}.js" force="no">
-            <filelist dir="${amd.dir}/js">
+        <concat destfile="${build.dir}/${repo}/js/${repo}-${version}.js" force="no">
+            <filelist dir="${amd.dir}">
                 <file name="require.js"/>
-                <file name="${repo}.js"/>
+                <file name="js/${repo}.js"/>
             </filelist>
         </concat>
 
-        <concat destfile="${build.dir}/css/${repo}-${version}.css" force="no">
+        <concat destfile="${build.dir}/${repo}/css/${repo}-${version}.css" force="no">
             <filelist dir="${amd.dir}/css">
                 <file name="${repo}.css"/>
             </filelist>
@@ -185,8 +186,8 @@
         </taskdef>
 
         <yui-compressor warn="false" charset="UTF-8" fromdir="${build.dir}" todir="${build.dir}">
-           <include name="js/${repo}-${version}.js" />
-           <include name="css/${repo}-${version}.css" />
+           <include name="${repo}/js/${repo}-${version}.js" />
+           <include name="${repo}/css/${repo}-${version}.css" />
         </yui-compressor>
     </target>
 
@@ -197,18 +198,16 @@
 
     -->
 
-    <target name="-src-lib-exists">
-        <echo>Check if src/lib exists</echo>
 
-        <available file="${src.dir}/lib" type="dir" property="src.lib.exists" />
-    </target>
+    <target name="-copy-depends" depends="-init,-clean" description="Copying dependencies">
+        <echo>Copying dependencies</echo>
 
+        <copy todir="${build.dir}/${repo}">
+            <fileset refid="repo.depends"/>
+        </copy>
 
-    <target name="-copy-depends" depends="-clean,-src-lib-exists">
-        <echo>Copy dependencies</echo>
-
-        <copy todir="${build.dir}/js">
-            <fileset dir="${src.dir}/lib"/>
+        <copy todir="${build.dir}/lib">
+            <fileset dir="${lib.dir}"/>
         </copy>
     </target>
 
@@ -320,5 +319,46 @@
             </args>
         </git>
     </target>
+
+
+    <!--
+
+        REVISIONS
+
+    -->
+
+
+    <target name="major">
+        <echo>Increment build.major</echo>
+
+        <propertyfile file="build.properties">
+            <entry key="build.major" type="int" operation="+" default="0"/>
+            <entry key="build.minor" type="int" operation="=" default="0" value="0"/>
+            <entry key="build.revision" type="int" operation="=" default="0" value="0"/>
+        </propertyfile>
+    </target>
+
+
+    <target name="minor">
+        <echo>Increment build.minor</echo>
+
+        <propertyfile file="build.properties">
+            <entry key="build.major" type="int" operation="=" default="0"/>
+            <entry key="build.minor" type="int" operation="+" default="0"/>
+            <entry key="build.revision" type="int" operation="=" default="0" value="0"/>
+        </propertyfile>
+    </target>
+
+
+    <target name="revision">
+        <echo>Increment build revision</echo>
+
+        <propertyfile file="build.properties">
+            <entry key="build.major" type="int" operation="=" default="0"/>
+            <entry key="build.minor" type="int" operation="=" default="0"/>
+            <entry key="build.revision" type="int" operation="+" default="0"/>
+        </propertyfile>
+    </target>
+
 
 </project>

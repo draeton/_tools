@@ -1,2 +1,2 @@
 @echo off
-node.exe %APPS_HOME%/nodejs/node_modules/docco/bin/docco %*
+node %NODE_MODULES%/docco/bin/docco %*
