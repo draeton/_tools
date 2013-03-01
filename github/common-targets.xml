@@ -2,36 +2,21 @@
 <project>
 
 
-    <target name="-clean">
-        <echo>Make project directory structure</echo>
-
-        <delete dir="${amd.dir}"/>
-        <delete dir="${build.dir}"/>
-        <delete dir="${docs.dir}"/>
-        <delete dir="${out.dir}"/>
-
-        <mkdir dir="${amd.dir}"/>
-        <mkdir dir="${build.dir}"/>
-        <mkdir dir="${docs.dir}"/>
-        <mkdir dir="${out.dir}"/>
-    </target>
-
-
     <!--
 
         VALIDATION
 
     -->
 
+
     <target name="jshint">
         <echo>Linting</echo>
 
         <taskdef name="jshint" classname="com.philmander.jshint.JsHintAntTask" classpath="${jshint.jar}" />
 
-        <jshint dir="${src.dir}" optionsFile="./jshint.properties" fail="false">
+        <jshint dir="${src.dir}" optionsFile="jshint.properties" fail="false">
             <include name="**/*.js"/>
-            <exclude name="js/text.js"/>
-            <exclude name="require.js"/>
+            <exclude name="*.js"/>
             <report type="plain" destFile="${out.dir}/jshint.out" />
         </jshint>
 
@@ -95,6 +80,11 @@
     -->
 
 
+    <target name="docs" depends="-readme,-docker">
+        <echo>Update documentation</echo>
+    </target>
+
+
     <target name="-readme">
         <echo>Updating version number in README.md</echo>
 
@@ -104,26 +94,11 @@
     </target>
 
 
-    <target name="docco" depends="-init,-clean">
-        <echo>Create docs using Docco</echo>
-
-        <fileset id="docs.js" dir="${src.dir}/js">
-            <include name="**/*.js"/>
-            <exclude name="text.js"/>
-        </fileset>
-
-        <pathconvert pathsep=" " property="docco.args" refid="docs.js"/>
-        <exec executable="${docco.bat}">
-            <arg line="${docco.args}"/>
-        </exec>
-
-        <!-- clean up after docco -->
-        <delete dir="-p"/>
-    </target>
-
-
-    <target name="docker" depends="-init,-clean">
+    <target name="-docker">
         <echo>Create docs using Docker</echo>
+
+        <delete dir="${docs.dir}"/>
+        <mkdir dir="${docs.dir}"/>
 
         <exec executable="${docker.bat}">
             <arg line="-i ${src.dir}/js"/>
@@ -136,26 +111,38 @@
 
     <!--
 
-        OPTIMIZATION
+        BUILD
 
     -->
 
-    <target name="require" depends="-clean">
-        <echo>Optimize scripts with r.js and closure compiler</echo>
 
-        <java classname="org.mozilla.javascript.tools.shell.Main" failonerror="true">
-            <classpath>
-                <pathelement location="${rhino.jar}" />
-                <pathelement location="${closure.jar}" />
-            </classpath>
-            <arg value="${r.js}" />
-            <arg value="-o" />
-            <arg value="./app.build.js" />
-        </java>
+    <target name="build" depends="-clean,-require,-concat,-minify,-copy-depends,-zip,-pages-copy">
+        <echo>Starting new build</echo>
     </target>
 
 
-    <target name="-concat" depends="require">
+    <target name="-clean">
+        <echo>Cleaning build directory</echo>
+
+        <delete dir="${build.dir}"/>
+        <mkdir dir="${build.dir}"/>
+    </target>
+
+
+    <target name="-require">
+        <echo>Optimize scripts with r.js and closure compiler</echo>
+
+        <delete dir="${amd.dir}"/>
+        <mkdir dir="${amd.dir}"/>
+
+        <exec executable="node">
+            <arg line="${r.js}"/>
+            <arg line="-o build.js"/>
+        </exec>
+    </target>
+
+
+    <target name="-concat" depends="-require">
         <echo>Concatenation of JS and CSS</echo>
 
         <concat destfile="${build.dir}/${repo}/js/${repo}-${version}.js" force="no">
@@ -192,14 +179,7 @@
     </target>
 
 
-    <!--
-
-        DISTRIBUTION
-
-    -->
-
-
-    <target name="-copy-depends" depends="-init,-clean" description="Copying dependencies">
+    <target name="-copy-depends">
         <echo>Copying dependencies</echo>
 
         <copy todir="${build.dir}/${repo}">
@@ -220,11 +200,32 @@
     </target>
 
 
+    <target name="-pages-copy">
+        <echo>Copying build to gh-pages branch</echo>
+
+        <delete dir="${gh-pages.dir}/repo"/>
+
+        <copy todir="${gh-pages.dir}/repo/build">
+            <fileset dir="${build.dir}"/>
+        </copy>
+        <copy todir="${gh-pages.dir}/repo/dist">
+            <fileset dir="${dist.dir}"/>
+        </copy>
+        <copy todir="${gh-pages.dir}/repo/docs">
+            <fileset dir="${docs.dir}"/>
+        </copy>
+        <copy todir="${gh-pages.dir}/repo/tests">
+            <fileset dir="${tests.dir}"/>
+        </copy>
+    </target>
+
+
     <!--
 
         GIT
 
     -->
+
 
     <macrodef name="git">
         <attribute name="command"/>
@@ -242,9 +243,11 @@
 
 
     <target name="-commit-message">
-        <echo>Set commit message</echo>
+        <echo>Set commit message:</echo>
 
         <input message="Please enter a commit message:" addproperty="commit.message"/>
+
+        <property name="pages.commit.message" value="${commit.message}"/>
     </target>
 
 
@@ -274,44 +277,34 @@
 
     -->
 
-    <target name="-gh-pages-update">
-        <echo>Make new changes to gh-pages</echo>
 
-        <echo>copy new index.md to gh-pages and update version number</echo>
+    <target name="pages-build">
+        <echo>Update templates and generated pages</echo>
+
         <delete file="${gh-pages.dir}/index.md"/>
         <copy file="${gh-pages.dir}/_templates/index.md" tofile="${gh-pages.dir}/index.md"/>
         <replace file="${gh-pages.dir}/index.md" token="@VERSION@" value="${version}"/>
     </target>
 
 
-    <target name="-gh-pages-commit">
-        <echo>Update gh-pages repo master copy to latest version</echo>
+    <target name="-pages-commit-message">
+        <echo>Set commit message for gh-pages branch:</echo>
 
-        <!-- copy master -->
-        <delete dir="${gh-pages.dir}/repo"/>
+        <input message="Please enter a commit message:" addproperty="pages.commit.message"/>
+    </target>
 
-        <copy todir="${gh-pages.dir}/repo/build">
-            <fileset dir="${build.dir}"/>
-        </copy>
-        <copy todir="${gh-pages.dir}/repo/dist">
-            <fileset dir="${dist.dir}"/>
-        </copy>
-        <copy todir="${gh-pages.dir}/repo/docs">
-            <fileset dir="${docs.dir}"/>
-        </copy>
-        <copy todir="${gh-pages.dir}/repo/tests">
-            <fileset dir="${tests.dir}"/>
-        </copy>
 
-        <!-- commit -->
+    <target name="pages-commit" depends="-pages-commit-message">
+        <echo>Commit changes in gh-pages branch</echo>
+
         <git command="add" dir="${gh-pages.dir}">
             <args><arg line="."/></args>
         </git>
+
         <git command="commit" dir="${gh-pages.dir}">
-            <args><arg value="-am Copied files from master branch"/></args>
+            <args><arg value="-am Pages ${version} - ${pages.commit.message}"/></args>
         </git>
 
-        <!-- push -->
         <git command="push" dir="${gh-pages.dir}">
             <args>
                 <arg value="origin"/>
@@ -336,6 +329,8 @@
             <entry key="build.minor" type="int" operation="=" default="0" value="0"/>
             <entry key="build.revision" type="int" operation="=" default="0" value="0"/>
         </propertyfile>
+
+        <property file="build.properties"/>
     </target>
 
 
@@ -347,6 +342,8 @@
             <entry key="build.minor" type="int" operation="+" default="0"/>
             <entry key="build.revision" type="int" operation="=" default="0" value="0"/>
         </propertyfile>
+
+        <property file="build.properties"/>
     </target>
 
 
@@ -358,6 +355,8 @@
             <entry key="build.minor" type="int" operation="=" default="0"/>
             <entry key="build.revision" type="int" operation="+" default="0"/>
         </propertyfile>
+
+        <property file="build.properties"/>
     </target>
 
 
